@@ -19,7 +19,7 @@ struct pid
 };
 
 /* Read all available fanotify events from the file descriptor 'fd'. */
-static void handle_events(int fd, struct pid *pids, int offs, int pid_size)
+static void handle_events(int fd, int offs, int pid_size, struct pid *pids)
 {
     const struct fanotify_event_metadata *metadata;
     struct fanotify_event_metadata buf[200];
@@ -71,23 +71,23 @@ static void handle_events(int fd, struct pid *pids, int offs, int pid_size)
                     response.fd = metadata->fd;
                     response.response = FAN_ALLOW;
                     write(fd, &response, sizeof(response));
-                    index = metadata->id % pid_size;
-                    if (pids[index].id != metadata->id)
+                    index = metadata->pid % pid_size;
+                    if (pids[index].id != metadata->pid)
                     {
-                    	printf("Cleared %d\n", metadata->id);
-                        pids[index].id = metadata->id;
+                    	printf("Cleared %d\n", metadata->pid);
+                        pids[index].id = metadata->pid;
                         memset(pids[index].num_open, 0, offs * sizeof(int));
                         memset(pids[index].num_write, 0, offs * sizeof(int));
                     }
                     ++pids[index].num_open[metadata->fd % offs];
                 }
-                if (metadata->mask & FAN_OPEN_EXEC_PERM)
+                /*if (metadata->mask & FAN_OPEN_EXEC_PERM)
                 {
                     printf("FAN_OPEN_EXEC_PERM: ");
                     response.fd = metadata->fd;
                     response.response = FAN_ALLOW;
                     write(fd, &response, sizeof(response));
-                }
+                }*/
 
                 if (metadata->mask & FAN_MODIFY) 
                 {
@@ -96,10 +96,10 @@ static void handle_events(int fd, struct pid *pids, int offs, int pid_size)
                     response.response = FAN_ALLOW;
                     write(fd, &response, sizeof(response));
 
-                    index = metadata->id % pid_size;
-                    if (pids[index].id != metadata->id)
+                    index = metadata->pid % pid_size;
+                    if (pids[index].id != metadata->pid)
                     {
-                        pids[index].id = metadata->id;
+                        pids[index].id = metadata->pid;
                         memset(pids[index].num_open, 0, offs * sizeof(int));
                         memset(pids[index].num_write, 0, offs * sizeof(int));
                     }
@@ -127,9 +127,9 @@ static void handle_events(int fd, struct pid *pids, int offs, int pid_size)
 
                 path[path_len] = '\0';
                 printf("File %s", path);
-                printf(" PID %d", metadata->id);
+                printf(" PID %d", metadata->pid);
 
-                struct pid *action = &pids[index]
+                struct pid *action = &pids[index];
                 int counter = 0;
                 for (int i = 0; i < offs; ++i)
                 {
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
 
     printf("Listening for events.\n");
     int offs = 10;
-    int pid_size = 200;
+    int pid_size = 100;
     struct pid *pids = malloc(sizeof(struct pid) * pid_size);
     for (int i = 0; i < pid_size; ++i)
     {
