@@ -7,6 +7,7 @@
 ## Запуск
 
   python3 encrypt.py
+  
   python3 antivirus.py
   
 
